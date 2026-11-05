@@ -1,0 +1,99 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny catch-all
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isSignedIn() && (
+        exists(/databases/$(database)/documents/admins/$(request.auth.uid)) ||
+        (request.auth.token.email != null && request.auth.token.email == "24311a1283@it.sreenidhi.edu.in")
+      );
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    // Admins collection: records authoritative staff users
+    match /admins/{adminId} {
+      allow read: if isSignedIn();
+      allow create, update: if isSignedIn() && (
+        isAdmin() ||
+        (request.auth.token.email == "24311a1283@it.sreenidhi.edu.in" && request.auth.uid == adminId)
+      );
+      allow delete: if isAdmin() && adminId != request.auth.uid;
+    }
+
+    // Users collection: user profiles partitioned by UID
+    match /users/{userId} {
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin();
+      allow create: if isOwner(userId) &&
+        incoming().uid == userId &&
+        incoming().name is string && incoming().name.size() <= 100 &&
+        (
+          incoming().role == 'student' ||
+          (incoming().role == 'staff' && (isAdmin() || request.auth.token.email == "24311a1283@it.sreenidhi.edu.in"))
+        );
+      allow update: if (
+        isOwner(userId) &&
+        incoming().uid == existing().uid &&
+        incoming().role == existing().role &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['name', 'studentId'])
+      ) || isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Menu Items collection: campus food catalog
+    match /menu_items/{itemId} {
+      allow read: if isSignedIn();
+      allow create: if isAdmin() &&
+        incoming().name is string && incoming().name.size() <= 100 &&
+        incoming().price is number && incoming().price >= 0 &&
+        incoming().category in ['Breakfast', 'Lunch', 'Snacks', 'Drinks', 'Combos'] &&
+        incoming().isVeg is bool &&
+        incoming().isAvailable is bool;
+      allow update: if isAdmin();
+      allow delete: if isAdmin();
+    }
+
+    // Orders collection: student food pre-orders
+    match /orders/{orderId} {
+      allow get: if isSignedIn() && (resource.data.studentUid == request.auth.uid || isAdmin());
+      allow list: if isSignedIn() && (resource.data.studentUid == request.auth.uid || isAdmin());
+      allow create: if isSignedIn() &&
+        incoming().studentUid == request.auth.uid &&
+        incoming().orderId is string &&
+        incoming().token is string &&
+        incoming().total is number && incoming().total > 0 &&
+        incoming().status == 'Pending' &&
+        incoming().items is list &&
+        incoming().items.size() > 0 &&
+        incoming().items.size() <= 30;
+      allow update: if isAdmin() &&
+        incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']) &&
+        incoming().status in ['Pending', 'Preparing', 'Ready', 'Completed', 'Cancelled'];
+      allow delete: if isAdmin();
+    }
+  }
+}

@@ -1,0 +1,86 @@
+{
+  "entities": {
+    "User": {
+      "title": "User",
+      "description": "Registered campus student or staff profile",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 100 },
+        "email": { "type": "string", "maxLength": 150 },
+        "studentId": { "type": "string", "maxLength": 50 },
+        "role": { "type": "string", "enum": ["student", "staff"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "name", "email", "role"]
+    },
+    "Admin": {
+      "title": "Admin",
+      "description": "Designated canteen staff administrator identity",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string", "maxLength": 150 },
+        "assignedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["email"]
+    },
+    "MenuItem": {
+      "title": "MenuItem",
+      "description": "Campus food item with availability and price",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string", "maxLength": 128 },
+        "name": { "type": "string", "maxLength": 100 },
+        "category": { "type": "string", "enum": ["Breakfast", "Lunch", "Snacks", "Drinks", "Combos"] },
+        "price": { "type": "number" },
+        "description": { "type": "string", "maxLength": 300 },
+        "emoji": { "type": "string", "maxLength": 10 },
+        "isVeg": { "type": "boolean" },
+        "isAvailable": { "type": "boolean" },
+        "prepTimeMinutes": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "name", "category", "price", "isVeg", "isAvailable"]
+    },
+    "Order": {
+      "title": "Order",
+      "description": "Student food pre-order with snapshot of items and status",
+      "type": "object",
+      "properties": {
+        "orderId": { "type": "string", "maxLength": 64 },
+        "token": { "type": "string", "maxLength": 32 },
+        "studentUid": { "type": "string", "maxLength": 128 },
+        "studentName": { "type": "string", "maxLength": 100 },
+        "studentId": { "type": "string", "maxLength": 50 },
+        "items": { "type": "array" },
+        "total": { "type": "number" },
+        "notes": { "type": "string", "maxLength": 500 },
+        "pickupSlot": { "type": "string", "maxLength": 100 },
+        "paymentMethod": { "type": "string", "maxLength": 50 },
+        "status": { "type": "string", "enum": ["Pending", "Preparing", "Ready", "Completed", "Cancelled"] },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["orderId", "token", "studentUid", "studentName", "total", "status", "items"]
+    }
+  },
+  "firestore": {
+    "/users/{userId}": {
+      "schema": "User",
+      "description": "User profiles partitioned by UID"
+    },
+    "/admins/{adminId}": {
+      "schema": "Admin",
+      "description": "Authoritative staff administrator documents keyed by UID"
+    },
+    "/menu_items/{itemId}": {
+      "schema": "MenuItem",
+      "description": "Canteen food catalog items"
+    },
+    "/orders/{orderId}": {
+      "schema": "Order",
+      "description": "Student food orders with pickup tokens and status"
+    }
+  }
+}
